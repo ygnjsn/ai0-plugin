@@ -340,6 +340,13 @@ export async function handleBroadcastCommand(e, pureText, ctx = {}) {
   try { pushBot(globalThis?.bot) } catch (_) {}
   try { pushBot(e?.bot) } catch (_) {}
   try { pushBot(e?.adapter) } catch (_) {}
+  // icqq / NapCat 底层 client（getGroupList 常在这里）
+  for (const b of [...bots]) {
+    try { pushBot(b?.client) } catch (_) {}
+    try { pushBot(b?.internal) } catch (_) {}
+    try { pushBot(b?.icqq) } catch (_) {}
+    try { pushBot(b?.napcat) } catch (_) {}
+  }
 
   // 从所有实例聚合群号（Bot.gl 是 Map<群号, 群信息>，兼容普通对象与数组）
   const groupIds = new Set()
@@ -369,7 +376,7 @@ export async function handleBroadcastCommand(e, pureText, ctx = {}) {
   if (!groupIds.size) {
     for (const b of bots) {
       try {
-        if (typeof b.getGroupList === 'function') {
+        if (typeof b?.getGroupList === 'function') {
           const list = await b.getGroupList()
           if (list instanceof Map) {
             for (const key of list.keys()) groupIds.add(String(key))
@@ -378,6 +385,8 @@ export async function handleBroadcastCommand(e, pureText, ctx = {}) {
               const gid = g?.group_id ?? g?.groupId ?? g?.gc ?? g?.uin ?? g
               if (gid != null && String(gid) !== '0') groupIds.add(String(gid))
             }
+          } else if (list && typeof list === 'object') {
+            for (const key of Object.keys(list)) groupIds.add(String(key))
           }
         }
       } catch (_) {}
@@ -385,7 +394,9 @@ export async function handleBroadcastCommand(e, pureText, ctx = {}) {
   }
 
   if (!groupIds.size) {
-    try { await e.reply('没有找到机器人所在的群聊，无法广播。') } catch (_) {}
+    try {
+      await e.reply(`没有找到机器人所在的群聊，无法广播。（机器人实例 ${bots.length} 个，请确认协议端已登录并同步群列表）`)
+    } catch (_) {}
     return true
   }
 
